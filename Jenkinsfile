@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'python:3.10-slim'
+            args '-u root'
+        }
+    }
 
     stages {
         stage('Checkout') {
@@ -8,15 +13,24 @@ pipeline {
             }
         }
 
+        stage('Verify Python') {
+            steps {
+                sh 'python --version'
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
-                sh 'python3 --version || true'
+                sh '''
+                pip install --upgrade pip
+                pip install -r requirements.txt || true
+                '''
             }
         }
 
         stage('Run Tests') {
             steps {
-                echo 'Running tests (placeholder)'
+                echo 'ML tests will go here'
             }
         }
     }
