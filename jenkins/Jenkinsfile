@@ -104,7 +104,8 @@ pipeline {
                 python3 -m venv .venv
                 . .venv/bin/activate
                 pip install --upgrade pip
-                pip install -r requirements.txt
+                pip install -r sagemaker/requirements.txt
+
 
                 python sagemaker/deploy_endpoint.py \
                 --region ${AWS_DEFAULT_REGION} \
