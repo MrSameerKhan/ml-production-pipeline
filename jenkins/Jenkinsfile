@@ -47,7 +47,7 @@ pipeline {
       }
     }
 
-    stage('Buildx build+push (linux/amd64)') {
+    stage('Classic build+push (Docker v2)') {
         steps {
             withCredentials([usernamePassword(
             credentialsId: 'aws-jenkins-basic',
@@ -65,30 +65,23 @@ pipeline {
                 aws ecr describe-repositories --repository-names ${ECR_REPO} >/dev/null 2>&1 || \
                 aws ecr create-repository --repository-name ${ECR_REPO} >/dev/null
 
-                # Login to ECR
+                # Login
                 aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${REGISTRY}
 
-                # Enable buildx (idempotent)
-                docker buildx create --name smbuilder --use >/dev/null 2>&1 || docker buildx use smbuilder
-                docker buildx inspect --bootstrap
+                # IMPORTANT: force classic builder (no buildx)
+                export DOCKER_BUILDKIT=0
 
-                # (Optional but helpful) delete the tag if it already exists
-                aws ecr batch-delete-image --repository-name ${ECR_REPO} --image-ids imageTag=${SM_IMAGE_TAG} >/dev/null 2>&1 || true
-
-                # Build + push linux/amd64 using Docker v2 media types (NOT OCI)
-                docker buildx build \
-                --platform linux/amd64 \
-                --build-arg MODEL_VERSION=${MODEL_VERSION} \
-                -f inference/Dockerfile \
-                --output type=image,name=${IMAGE_REMOTE},push=true,oci-mediatypes=false \
-                .
+                # Build (classic) + tag + push
+                docker build -t textcls-tfserving:${MODEL_VERSION} --build-arg MODEL_VERSION=${MODEL_VERSION} -f inference/Dockerfile .
+                docker tag textcls-tfserving:${MODEL_VERSION} ${IMAGE_REMOTE}
+                docker push ${IMAGE_REMOTE}
 
                 echo "PUSHED_IMAGE=${IMAGE_REMOTE}"
-
             '''
             }
         }
         }
+
 
 
 
