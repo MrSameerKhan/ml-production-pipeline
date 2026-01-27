@@ -22,18 +22,18 @@ pipeline {
 
     stage('Download artifacts from S3') {
       steps {
-        withCredentials([[
-          $class: 'AmazonWebServicesCredentialsBinding',
-          credentialsId: 'aws-jenkins-creds',
-          accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-          secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-        ]]) {
-          sh """
-            mkdir -p artifacts/versioned/${params.MODEL_VERSION}
-            aws s3 cp s3://${params.S3_BUCKET}/${params.S3_PREFIX}/versioned/${params.MODEL_VERSION}/saved_model.tar.gz \
-              artifacts/versioned/${params.MODEL_VERSION}/saved_model.tar.gz
-          """
+            withCredentials([usernamePassword(
+            credentialsId: 'aws-jenkins-basic',
+            usernameVariable: 'AWS_ACCESS_KEY_ID',
+            passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+            )]) {
+            sh """
+                mkdir -p artifacts/versioned/${params.MODEL_VERSION}
+                aws s3 cp s3://${params.S3_BUCKET}/${params.S3_PREFIX}/versioned/${params.MODEL_VERSION}/saved_model.tar.gz \
+                artifacts/versioned/${params.MODEL_VERSION}/saved_model.tar.gz
+            """
         }
+
       }
     }
 
