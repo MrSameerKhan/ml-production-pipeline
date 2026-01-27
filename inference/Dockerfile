@@ -1,17 +1,13 @@
-FROM tensorflow/serving:2.15.1
+FROM python:3.11-slim
 
-ENV MODEL_NAME=textcls
+WORKDIR /opt/program
 
-ARG MODEL_VERSION=v1.0.0
-COPY artifacts/versioned/${MODEL_VERSION}/saved_model.tar.gz /tmp/saved_model.tar.gz
+COPY inference/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN mkdir -p /models/${MODEL_NAME}/1 && \
-    tar -xzf /tmp/saved_model.tar.gz -C /models/${MODEL_NAME}/1 && \
-    rm /tmp/saved_model.tar.gz && \
-    if [ -f /models/${MODEL_NAME}/1/saved_model/saved_model.pb ]; then \
-      mv /models/${MODEL_NAME}/1/saved_model/* /models/${MODEL_NAME}/1/ && \
-      rmdir /models/${MODEL_NAME}/1/saved_model ; \
-    fi && \
-    test -f /models/${MODEL_NAME}/1/saved_model.pb
+COPY inference/app.py .
 
-EXPOSE 8501
+ENV PYTHONUNBUFFERED=1
+EXPOSE 8080
+
+CMD ["python", "app.py"]
