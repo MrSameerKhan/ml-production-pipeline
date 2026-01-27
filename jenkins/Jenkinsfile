@@ -1,7 +1,8 @@
 pipeline {
   agent { label 'linux && docker' }
 
-  options { timestamps(); ansiColor('xterm') }
+  options { timestamps() }
+
 
   parameters {
     string(name: 'AWS_REGION', defaultValue: 'ap-south-1', description: 'AWS region')
