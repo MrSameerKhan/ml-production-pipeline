@@ -47,7 +47,7 @@ pipeline {
       }
     }
 
-    stage('Classic build+push (Docker v2)') {
+    stage('Buildx build -> docker load -> push (schema2)') {
         steps {
             withCredentials([usernamePassword(
             credentialsId: 'aws-jenkins-basic',
@@ -68,19 +68,37 @@ pipeline {
                 # Login
                 aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${REGISTRY}
 
-                # IMPORTANT: force classic builder (no buildx)
-                export DOCKER_BUILDKIT=0
+                # Buildx setup
+                docker buildx create --name smbuilder --use >/dev/null 2>&1 || docker buildx use smbuilder
+                docker buildx inspect --bootstrap
 
-                # Build (classic) + tag + push
-                docker build -t textcls-tfserving:${MODEL_VERSION} --build-arg MODEL_VERSION=${MODEL_VERSION} -f inference/Dockerfile .
-                docker tag textcls-tfserving:${MODEL_VERSION} ${IMAGE_REMOTE}
+                # Build an amd64 image and export as a Docker image tar (not OCI)
+                rm -f /tmp/sm-image.tar
+                docker buildx build \
+                --platform linux/amd64 \
+                --build-arg MODEL_VERSION=${MODEL_VERSION} \
+                -f inference/Dockerfile \
+                -t ${IMAGE_REMOTE} \
+                --output type=docker,dest=/tmp/sm-image.tar \
+                .
+
+                # Load into local docker and push using classic docker push
+                docker load -i /tmp/sm-image.tar
                 docker push ${IMAGE_REMOTE}
+
+                # Verify manifest media type (must be docker v2 schema2)
+                aws ecr batch-get-image \
+                --repository-name ${ECR_REPO} \
+                --image-ids imageTag=${SM_IMAGE_TAG} \
+                --query 'images[0].imageManifestMediaType' \
+                --output text
 
                 echo "PUSHED_IMAGE=${IMAGE_REMOTE}"
             '''
             }
         }
-        }
+}
+
 
 
 
