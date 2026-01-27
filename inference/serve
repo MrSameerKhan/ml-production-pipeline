@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -e
+
+# SageMaker calls: docker run <image> serve
+# It also sets /opt/ml/model automatically from model.tar.gz
+exec python /opt/program/app.py
