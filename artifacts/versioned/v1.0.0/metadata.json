@@ -1,0 +1,19 @@
+{
+  "model_version": "v1.0.0",
+  "created_at_utc": "2026-01-27T16:30:18Z",
+  "task": "text_classification",
+  "framework": "tensorflow",
+  "metrics": {
+    "accuracy": 0.42857142857142855
+  },
+  "artifacts": {
+    "keras_model_dir": "keras_model",
+    "preprocess": "preprocess.joblib",
+    "label_map": "label_map.json",
+    "saved_model_tar": "saved_model.tar.gz"
+  },
+  "hashes": {
+    "preprocess.joblib": "425c152eab29a46c67e70858d3c4eac18d887222ad6b328d6ffa4f2bdd574f94",
+    "label_map.json": "ff360947bd1e85d5c1def445fecd80d507f105c2af1ca2f9c0ce8f7698718451"
+  }
+}

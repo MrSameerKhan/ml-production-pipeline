@@ -1,0 +1,49 @@
+pipeline {
+  agent { label 'linux && docker' }
+
+  options { timestamps(); ansiColor('xterm') }
+
+  parameters {
+    string(name: 'AWS_REGION', defaultValue: 'ap-south-1', description: 'AWS region')
+    string(name: 'S3_BUCKET', defaultValue: 'sameer-ml-artifacts-ap-south-1', description: 'S3 artifacts bucket')
+    string(name: 'S3_PREFIX', defaultValue: 'ml/textcls', description: 'S3 base prefix')
+    string(name: 'MODEL_VERSION', defaultValue: 'v1.0.0', description: 'Artifact version')
+  }
+
+  environment {
+    AWS_DEFAULT_REGION = "${params.AWS_REGION}"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+
+    stage('Download artifacts from S3') {
+      steps {
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'aws-jenkins-creds',
+          accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+          secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+        ]]) {
+          sh """
+            mkdir -p artifacts/versioned/${params.MODEL_VERSION}
+            aws s3 cp s3://${params.S3_BUCKET}/${params.S3_PREFIX}/versioned/${params.MODEL_VERSION}/saved_model.tar.gz \
+              artifacts/versioned/${params.MODEL_VERSION}/saved_model.tar.gz
+          """
+        }
+      }
+    }
+
+    stage('Docker build (TF Serving)') {
+      steps {
+        sh """
+          docker build -t textcls-tfserving:${params.MODEL_VERSION} \
+            --build-arg MODEL_VERSION=${params.MODEL_VERSION} \
+            -f inference/Dockerfile .
+        """
+      }
+    }
+  }
+}

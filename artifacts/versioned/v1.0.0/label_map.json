@@ -1,0 +1,20 @@
+{
+  "label_to_id": {
+    "account": 0,
+    "bug": 1,
+    "cancel": 2,
+    "login": 3,
+    "payment": 4,
+    "pricing": 5,
+    "refund": 6
+  },
+  "id_to_label": {
+    "0": "account",
+    "1": "bug",
+    "2": "cancel",
+    "3": "login",
+    "4": "payment",
+    "5": "pricing",
+    "6": "refund"
+  }
+}
