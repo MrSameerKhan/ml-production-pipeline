@@ -14,6 +14,8 @@ pipeline {
     string(name: 'INSTANCE_TYPE', defaultValue: 'ml.m5.large', description: 'SageMaker instance type')
     string(name: 'INITIAL_INSTANCE_COUNT', defaultValue: '1', description: 'Initial instances')
     string(name: 'SAGEMAKER_EXEC_ROLE_ARN', defaultValue: 'arn:aws:iam::570617927874:role/sagemaker-textcls-exec-role', description: 'SageMaker execution role ARN')
+    string(name: 'SM_IMAGE_TAG', defaultValue: 'v1.0.0-sm1', description: 'SageMaker-compatible image tag')
+
 
 
   }
@@ -34,11 +36,12 @@ pipeline {
             usernameVariable: 'AWS_ACCESS_KEY_ID',
             passwordVariable: 'AWS_SECRET_ACCESS_KEY'
             )]) {
-            sh """
-                mkdir -p artifacts/versioned/${params.MODEL_VERSION}
-                aws s3 cp s3://${params.S3_BUCKET}/${params.S3_PREFIX}/versioned/${params.MODEL_VERSION}/saved_model.tar.gz \
-                artifacts/versioned/${params.MODEL_VERSION}/saved_model.tar.gz
-            """
+            sh '''
+            set -e
+            mkdir -p artifacts/versioned/${MODEL_VERSION}
+            aws s3 cp s3://${S3_BUCKET}/${S3_PREFIX}/versioned/${MODEL_VERSION}/saved_model.tar.gz artifacts/versioned/${MODEL_VERSION}/saved_model.tar.gz
+            '''
+
         }
 
       }
@@ -56,7 +59,7 @@ pipeline {
 
                 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
                 REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
-                IMAGE_REMOTE=${REGISTRY}/${ECR_REPO}:${MODEL_VERSION}
+                IMAGE_REMOTE=${REGISTRY}/${ECR_REPO}:${SM_IMAGE_TAG}
 
                 # Ensure repo exists
                 aws ecr describe-repositories --repository-names ${ECR_REPO} >/dev/null 2>&1 || \
@@ -69,15 +72,19 @@ pipeline {
                 docker buildx create --name smbuilder --use >/dev/null 2>&1 || docker buildx use smbuilder
                 docker buildx inspect --bootstrap
 
-                # Build + push a SINGLE platform image (no OCI index)
+                # (Optional but helpful) delete the tag if it already exists
+                aws ecr batch-delete-image --repository-name ${ECR_REPO} --image-ids imageTag=${SM_IMAGE_TAG} >/dev/null 2>&1 || true
+
+                # Build + push linux/amd64 using Docker v2 media types (NOT OCI)
                 docker buildx build \
                 --platform linux/amd64 \
                 --build-arg MODEL_VERSION=${MODEL_VERSION} \
                 -f inference/Dockerfile \
-                -t ${IMAGE_REMOTE} \
-                --push .
+                --output type=image,name=${IMAGE_REMOTE},push=true,oci-mediatypes=false \
+                .
 
                 echo "PUSHED_IMAGE=${IMAGE_REMOTE}"
+
             '''
             }
         }
@@ -97,7 +104,8 @@ pipeline {
 
                 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
                 REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
-                ECR_IMAGE=${REGISTRY}/${ECR_REPO}:${MODEL_VERSION}
+                ECR_IMAGE=${REGISTRY}/${ECR_REPO}:${SM_IMAGE_TAG}
+
 
                 MODEL_DATA_S3=s3://${S3_BUCKET}/${S3_PREFIX}/versioned/${MODEL_VERSION}/saved_model.tar.gz
 
