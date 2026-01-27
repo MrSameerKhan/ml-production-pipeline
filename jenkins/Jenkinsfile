@@ -100,9 +100,9 @@ pipeline {
 
                 MODEL_DATA_S3=s3://${S3_BUCKET}/${S3_PREFIX}/versioned/${MODEL_VERSION}/saved_model.tar.gz
 
-                python -m pip install -r requirements.txt
+                python3 -m pip install -r requirements.txt
 
-                python sagemaker/deploy_endpoint.py \
+                python3 sagemaker/deploy_endpoint.py \
                 --region ${AWS_DEFAULT_REGION} \
                 --endpoint ${ENDPOINT_NAME} \
                 --exec-role-arn "${SAGEMAKER_EXEC_ROLE_ARN}" \
