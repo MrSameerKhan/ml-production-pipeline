@@ -10,6 +10,11 @@ pipeline {
     string(name: 'S3_PREFIX', defaultValue: 'ml/textcls', description: 'S3 base prefix')
     string(name: 'MODEL_VERSION', defaultValue: 'v1.0.0', description: 'Artifact version')
     string(name: 'ECR_REPO', defaultValue: 'textcls-infer', description: 'ECR repo name')
+    string(name: 'ENDPOINT_NAME', defaultValue: 'textcls-endpoint-dev', description: 'SageMaker endpoint name')
+    string(name: 'INSTANCE_TYPE', defaultValue: 'ml.m5.large', description: 'SageMaker instance type')
+    string(name: 'INITIAL_INSTANCE_COUNT', defaultValue: '1', description: 'Initial instances')
+    string(name: 'SAGEMAKER_EXEC_ROLE_ARN', defaultValue: 'arn:aws:iam::570617927874:role/sagemaker-textcls-exec-role', description: 'SageMaker execution role ARN')
+
 
   }
 
@@ -77,6 +82,39 @@ pipeline {
             }
         }
         }
+
+
+    stage('Deploy to SageMaker') {
+        steps {
+            withCredentials([usernamePassword(
+            credentialsId: 'aws-jenkins-basic',
+            usernameVariable: 'AWS_ACCESS_KEY_ID',
+            passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+            )]) {
+            sh '''
+                set -e
+
+                ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+                REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
+                ECR_IMAGE=${REGISTRY}/${ECR_REPO}:${MODEL_VERSION}
+
+                MODEL_DATA_S3=s3://${S3_BUCKET}/${S3_PREFIX}/versioned/${MODEL_VERSION}/saved_model.tar.gz
+
+                python -m pip install -r requirements.txt
+
+                python sagemaker/deploy_endpoint.py \
+                --region ${AWS_DEFAULT_REGION} \
+                --endpoint ${ENDPOINT_NAME} \
+                --exec-role-arn "${SAGEMAKER_EXEC_ROLE_ARN}" \
+                --instance-type ${INSTANCE_TYPE} \
+                --initial-count ${INITIAL_INSTANCE_COUNT} \
+                --ecr-image ${ECR_IMAGE} \
+                --model-data-s3 ${MODEL_DATA_S3}
+            '''
+            }
+        }
+        }
+
 
   }
 }
