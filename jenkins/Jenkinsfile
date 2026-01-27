@@ -100,7 +100,6 @@ pipeline {
 
                 MODEL_DATA_S3=s3://${S3_BUCKET}/${S3_PREFIX}/versioned/${MODEL_VERSION}/saved_model.tar.gz
 
-                python3 -m pip install -r requirements.txt
 
                 python3 -m venv .venv
                 . .venv/bin/activate
