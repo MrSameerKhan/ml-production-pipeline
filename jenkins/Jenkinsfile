@@ -47,9 +47,10 @@ pipeline {
     stage('Docker build (TF Serving)') {
       steps {
         sh """
-          docker build -t textcls-tfserving:${params.MODEL_VERSION} \
-            --build-arg MODEL_VERSION=${params.MODEL_VERSION} \
-            -f inference/Dockerfile .
+          docker build --platform=linux/amd64 -t textcls-tfserving:${MODEL_VERSION} \
+        --build-arg MODEL_VERSION=${MODEL_VERSION} \
+        -f inference/Dockerfile .
+
         """
       }
     }
